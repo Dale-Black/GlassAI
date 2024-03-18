@@ -1,3 +1,4 @@
 /Manifest.toml
 /.CondaPkg
 weights/
+.DS_Store
