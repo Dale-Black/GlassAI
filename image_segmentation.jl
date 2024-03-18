@@ -44,34 +44,59 @@ using PlotlyBase: add_trace!, attr
 # ╔═╡ b8e53ad9-41a7-46a9-a54b-8bdccd9fc31b
 using Images: load, channelview
 
-# ╔═╡ d0c22900-22d3-4a88-9c81-5b5e78812edc
+# ╔═╡ a0a39283-d21f-43ef-b52e-5d644a70d4c0
 md"""
-# Load Image
+# Image Segmentation Dashboard
+
+Welcome to the Image Segmentation Dashboard! This interactive web app allows you to load an image, select points for segmentation, and view the segmented mask.
+
+## How to Use
+
+1. Load an image by clicking on the "Choose File" button below.
+2. Click on the image to select points for segmentation. You can select multiple points.
+3. Check the "Run Segmentation" checkbox to initiate the segmentation process.
+4. The segmented mask will be displayed below the image.
+5. To clear the selected points and start over, click the "Clear Points" button.
+
+Let's get started!
 """
 
-# ╔═╡ 58fbdfd0-bac9-476b-816d-babf166fba84
+# ╔═╡ 62a5940d-b893-4158-bf8a-94b2333d9761
+md"""
+## Load Image
+
+Click the "Choose File" button to load an image:
+"""
+
+# ╔═╡ 2c2a2742-e455-4c56-9f68-d523d517dbca
 @bind im FilePicker([MIME("image/*")])
 
-# ╔═╡ 2caa8cf2-d9db-4fd6-99fc-6831e81bc61d
+# ╔═╡ a8b8d896-06ff-4702-a827-4beda9204466
 begin
-	img = im == nothing ? nothing : load(IOBuffer(im["data"]))
-	img_arr = img == nothing ? zeros(100, 100, 3) : reverse(permutedims(channelview(img), (2, 3, 1)), dims = 1)
+    img = im == nothing ? nothing : load(IOBuffer(im["data"]))
+    img_arr = img == nothing ? zeros(100, 100, 3) : reverse(permutedims(channelview(img), (2, 3, 1)), dims = 1)
 end;
 
-# ╔═╡ 2838443c-3d45-4cea-aac7-91e32d83606b
+# ╔═╡ 27ac9ce3-28cf-42ef-9e18-e7124b5f3808
 md"""
-## Choose Segmentation Points
+## Select Segmentation Points
 
-Click on any number of locations in the picture to select points for segmentation. Press "Run Segmentation" to initiate the segmentation.
+Click on the image to select points for segmentation. You can select multiple points.
 """
 
-# ╔═╡ 1b2c42a2-fbc0-4aba-a0d5-99ca1c614fa9
+# ╔═╡ cd88a1ea-52c5-4596-9bd3-7dd7702bc1a5
 md"""
 Run Segmentation: $(@bind run_segmentation CheckBox())
+
+Clear Points: $(@bind clear_points CheckBox())
 """
 
-# ╔═╡ 8656006a-a65d-4ea8-ae17-780688b9b203
+# ╔═╡ d09ab4f8-3d93-43d7-ab37-cb48d1acb066
 @bind clicks let
+    if clear_points
+        clicks = []
+    end
+    
     p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
     if img != nothing
         add_plotly_listener!(p, "plotly_click", "
@@ -102,20 +127,24 @@ Run Segmentation: $(@bind run_segmentation CheckBox())
     p
 end
 
-# ╔═╡ c584b2f9-fae5-40a9-b9b5-591a42aedfa0
+# ╔═╡ 78d30dba-5789-474f-bffd-c433e85f9478
 if run_segmentation && clicks != nothing && img != nothing
-	input_points = hcat(clicks...)
-	input_labels = ones(Int, size(input_points, 2))
+    input_points = hcat(clicks...)
+    input_labels = ones(Int, size(input_points, 2))
 end
 
-# ╔═╡ 9c3b19d4-ef1e-45e0-8d64-53698c0f39c0
+# ╔═╡ 52c5e6e7-a49f-495a-9a3c-4c6411bdee94
 md"""
-## View Segmentation Mask
+## Segmentation Result
+
+The segmented mask will be displayed below:
 """
 
-# ╔═╡ 47163547-f805-4f57-a98a-6fd045f0440f
+# ╔═╡ d9fd8e8e-8188-40d9-b932-44d4a5ac6fb5
 md"""
-#### Appendix
+## Appendix
+
+This section contains the necessary dependencies and utility functions used in the dashboard.
 """
 
 # ╔═╡ 27a8a934-9b14-4bec-8d0c-daed631a0fa7
@@ -146,7 +175,7 @@ end
 function run_efficient_sam(
 	img::AbstractArray{T, 3}, pts_sampled, pts_labels, model
 	) where {T}
-	img_tensor_py, pts_sampled_py, pts_labels_py = preprocess(img, pts_sampled, pts_labels) 
+	img_tensor_py, pts_sampled_py, pts_labels_py = preprocess(img, pts_sampled, pts_labels)
     
     # Run the model
     predicted_logits_py, predicted_iou_py = model(
@@ -166,45 +195,46 @@ function run_efficient_sam(
     return predicted_mask
 end
 
-# ╔═╡ 8339a4c6-d69e-4798-a0f5-ad90bf331a35
+# ╔═╡ 05ae620f-ac06-4d17-b8b4-f485d4be74be
 if run_segmentation && clicks != nothing && img != nothing
-	mask = run_efficient_sam(img_arr, input_points, input_labels, efficient_sam_vitt_model)
-	mask_float = Float64.(mask)
+    mask = run_efficient_sam(img_arr, input_points, input_labels, efficient_sam_vitt_model)
+    mask_float = Float64.(mask)
 else
-	mask_float = nothing
+    mask_float = nothing
 end;
 
-# ╔═╡ 7652852c-fb47-43f0-bed8-ba29700f95a5
+# ╔═╡ 4104d784-6b91-4246-b1a8-d2ad576cd46d
 let
-	# Create a heatmap of the original image
-	p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
+    # Create a heatmap of the original image
+    p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
 
-	if mask_float != nothing
-		# Create a new trace for the segmentation mask
-		mask_trace = PlotlyJS.heatmap(z=mask_float, colorscale = "Jet", opacity=0.5)
-		
-		# Add the segmentation mask trace to the existing plot
-		addtraces!(p, mask_trace)
-	end
-	
-	# Update the layout to set the title
-	relayout!(p, title_text = "Segmentation Mask")
-	
-	p
+    if mask_float != nothing
+        # Create a new trace for the segmentation mask
+        mask_trace = PlotlyJS.heatmap(z=mask_float, colorscale = "Jet", opacity=0.5)
+        
+        # Add the segmentation mask trace to the existing plot
+        addtraces!(p, mask_trace)
+    end
+    
+    # Update the layout to set the title
+    relayout!(p, title_text = "Segmentation Mask")
+    
+    p
 end
 
 # ╔═╡ Cell order:
-# ╟─d0c22900-22d3-4a88-9c81-5b5e78812edc
-# ╟─58fbdfd0-bac9-476b-816d-babf166fba84
-# ╠═2caa8cf2-d9db-4fd6-99fc-6831e81bc61d
-# ╟─2838443c-3d45-4cea-aac7-91e32d83606b
-# ╟─1b2c42a2-fbc0-4aba-a0d5-99ca1c614fa9
-# ╟─8656006a-a65d-4ea8-ae17-780688b9b203
-# ╠═c584b2f9-fae5-40a9-b9b5-591a42aedfa0
-# ╠═8339a4c6-d69e-4798-a0f5-ad90bf331a35
-# ╟─9c3b19d4-ef1e-45e0-8d64-53698c0f39c0
-# ╟─7652852c-fb47-43f0-bed8-ba29700f95a5
-# ╟─47163547-f805-4f57-a98a-6fd045f0440f
+# ╟─a0a39283-d21f-43ef-b52e-5d644a70d4c0
+# ╟─62a5940d-b893-4158-bf8a-94b2333d9761
+# ╟─2c2a2742-e455-4c56-9f68-d523d517dbca
+# ╠═a8b8d896-06ff-4702-a827-4beda9204466
+# ╟─27ac9ce3-28cf-42ef-9e18-e7124b5f3808
+# ╟─cd88a1ea-52c5-4596-9bd3-7dd7702bc1a5
+# ╟─d09ab4f8-3d93-43d7-ab37-cb48d1acb066
+# ╠═78d30dba-5789-474f-bffd-c433e85f9478
+# ╠═05ae620f-ac06-4d17-b8b4-f485d4be74be
+# ╟─52c5e6e7-a49f-495a-9a3c-4c6411bdee94
+# ╟─4104d784-6b91-4246-b1a8-d2ad576cd46d
+# ╟─d9fd8e8e-8188-40d9-b932-44d4a5ac6fb5
 # ╠═211b4260-be19-4127-8da2-527e290f6e2d
 # ╠═1023bb4d-219f-4843-8dc2-878a0760ee93
 # ╠═115cdd0c-f798-4478-96c0-64339f9d04bd
