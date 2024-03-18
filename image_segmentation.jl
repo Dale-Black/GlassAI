@@ -14,86 +14,138 @@ macro bind(def, element)
     end
 end
 
-# ╔═╡ e4d881c6-e31c-11ee-3cba-090365ce157a
+# ╔═╡ 211b4260-be19-4127-8da2-527e290f6e2d
 # ╠═╡ show_logs = false
-using Pkg; Pkg.activate(".")
-
-# ╔═╡ 3c073890-af5d-4c37-843c-4b03fc7c1f31
-using PlutoUI: TableOfContents, FilePicker
-
-# ╔═╡ 58ecc385-02df-43a8-86d7-cf7316e78fb3
-# ╠═╡ show_logs = false
-using PythonCall
-
-# ╔═╡ d567adda-a6b9-43b2-838b-5dd6edffcc95
-using PlutoPlotly
-
-# ╔═╡ b8c82a92-7613-4707-ba5b-29f171f59220
-# ╠═╡ show_logs = false
-using Images: load, channelview
-
-# ╔═╡ 2f5631e4-baeb-46b3-947d-310b2a99d71a
-md"""
-# Load Image
-"""
-
-# ╔═╡ 2b3c2be9-e179-45bc-ac06-e67acd37f880
-@bind im FilePicker()
-
-# ╔═╡ 0f7a88af-4a82-46d0-ac3e-94c9a71736b4
-md"""
-## Choose Segmentation Points
-
-Click on any two locations in the picture, to initiate the segmentation of that area
-"""
-
-# ╔═╡ 089d68e2-3c72-43c6-8f1d-0162e3f058ff
-md"""
-## View Segmentation Mask
-"""
-
-# ╔═╡ 62ed71dd-1598-4f1b-995c-db4483be5497
-md"""
-#### Appendix
-"""
-
-# ╔═╡ d4935235-404f-4cca-a4a1-a39031c12953
-import CairoMakie
-
-# ╔═╡ 27f17af6-d8f8-4d15-b1f5-3b21decad981
-TableOfContents()
-
-# ╔═╡ dbe6f5c9-b7f6-4ae5-89f3-800fcff7d179
 begin
+	using Pkg; Pkg.activate("."); Pkg.instantiate()
+	using PythonCall
+
 	### Import Python modules
 	np = pyimport("numpy")
 	efficient_sam = pyimport("efficient_sam.build_efficient_sam")
 	zipfile = pyimport("zipfile")
 	torch = pyimport("torch")
 	torchvision = pyimport("torchvision")
+
+	build_efficient_sam_vitt = efficient_sam.build_efficient_sam_vitt
+	efficient_sam_vitt_model = build_efficient_sam_vitt()
+	efficient_sam_vitt_model.eval()
 end
 
-# ╔═╡ 0bc72508-f018-441d-9faa-aa59f2c3564a
+# ╔═╡ 1023bb4d-219f-4843-8dc2-878a0760ee93
+using PlutoUI: TableOfContents, FilePicker, CheckBox
+
+# ╔═╡ 115cdd0c-f798-4478-96c0-64339f9d04bd
+using PlutoPlotly
+
+# ╔═╡ a6e5ec2f-df65-4853-8936-9254acfce324
+using PlotlyBase: add_trace!, attr
+
+# ╔═╡ b8e53ad9-41a7-46a9-a54b-8bdccd9fc31b
+using Images: load, channelview
+
+# ╔═╡ d0c22900-22d3-4a88-9c81-5b5e78812edc
+md"""
+# Load Image
+"""
+
+# ╔═╡ 58fbdfd0-bac9-476b-816d-babf166fba84
+@bind im FilePicker([MIME("image/*")])
+
+# ╔═╡ 2caa8cf2-d9db-4fd6-99fc-6831e81bc61d
+begin
+	img = im == nothing ? nothing : load(IOBuffer(im["data"]))
+	img_arr = img == nothing ? zeros(100, 100, 3) : reverse(permutedims(channelview(img), (2, 3, 1)), dims = 1)
+end;
+
+# ╔═╡ 2838443c-3d45-4cea-aac7-91e32d83606b
+md"""
+## Choose Segmentation Points
+
+Click on any number of locations in the picture to select points for segmentation. Press "Run Segmentation" to initiate the segmentation.
+"""
+
+# ╔═╡ 1b2c42a2-fbc0-4aba-a0d5-99ca1c614fa9
+md"""
+Run Segmentation: $(@bind run_segmentation CheckBox())
+"""
+
+# ╔═╡ 8656006a-a65d-4ea8-ae17-780688b9b203
+@bind clicks let
+    p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
+    if img != nothing
+        add_plotly_listener!(p, "plotly_click", "
+            (function() {
+                var clicks = [];
+                return function(e) {
+                    let dt = e.points[0];
+                    clicks.push([dt.x, dt.y]);
+                    
+                    // Add a scatter trace for the clicked point
+                    let trace = {
+                        x: [dt.x],
+                        y: [dt.y],
+                        mode: 'markers',
+                        marker: {
+                            size: 10,
+                            color: 'red'
+                        }
+                    };
+                    Plotly.addTraces(PLOT, [trace]);
+                    
+                    PLOT.value = clicks;
+                    PLOT.dispatchEvent(new CustomEvent('input'));
+                };
+            })()
+        ")
+    end
+    p
+end
+
+# ╔═╡ c584b2f9-fae5-40a9-b9b5-591a42aedfa0
+if run_segmentation && clicks != nothing && img != nothing
+	input_points = hcat(clicks...)
+	input_labels = ones(Int, size(input_points, 2))
+end
+
+# ╔═╡ 9c3b19d4-ef1e-45e0-8d64-53698c0f39c0
+md"""
+## View Segmentation Mask
+"""
+
+# ╔═╡ 47163547-f805-4f57-a98a-6fd045f0440f
+md"""
+#### Appendix
+"""
+
+# ╔═╡ 27a8a934-9b14-4bec-8d0c-daed631a0fa7
+import PlotlyJS
+
+# ╔═╡ 5d9b7817-93e0-487b-aecf-fe69891a93fd
+TableOfContents()
+
+# ╔═╡ ddae5f2c-38aa-4702-a93d-1c1702f8f09c
 function preprocess(img::AbstractArray{T, 3}, pts_sampled, pts_labels) where {T}
-	# Preprocess the input data
+    # Preprocess the input data
     image_np = Float32.(img)
     img_tensor = permutedims(image_np, (3, 1, 2))
     img_tensor = reshape(img_tensor, (1, size(img_tensor)...))
     
-    pts_sampled = reshape(pts_sampled, (1, 1, size(pts_sampled, 1), 2))
-    pts_labels = reshape(pts_labels, (1, 1, size(pts_labels, 1)))
+    pts_sampled = reshape(pts_sampled, (1, 1, size(pts_sampled, 2), 2))
+    pts_labels = reshape(pts_labels, (1, length(pts_labels)))
     
     # Convert Julia arrays to PyTorch tensors
     img_tensor_py = torch.tensor(np.array(img_tensor, dtype=np.float32))
     pts_sampled_py = torch.tensor(np.array(pts_sampled, dtype=np.float32))
     pts_labels_py = torch.tensor(np.array(pts_labels, dtype=np.float32))
 
-	return img_tensor_py, pts_sampled_py, pts_labels_py
+    return img_tensor_py, pts_sampled_py, pts_labels_py
 end
 
-# ╔═╡ 14949606-2b9b-4e26-aa4e-b56545768c09
+# ╔═╡ 95fd162b-33f1-4801-9725-53e73b1edc6b
 function run_efficient_sam(
-	img::AbstractArray{T, 3}, pts_sampled, pts_labels, model) where {T}
+	img::AbstractArray{T, 3}, pts_sampled, pts_labels, model
+	) where {T}
 	img_tensor_py, pts_sampled_py, pts_labels_py = preprocess(img, pts_sampled, pts_labels) 
     
     # Run the model
@@ -114,85 +166,51 @@ function run_efficient_sam(
     return predicted_mask
 end
 
-# ╔═╡ 58a53f29-4f85-47d8-8a01-43ce60547cf2
-begin
-	build_efficient_sam_vitt = efficient_sam.build_efficient_sam_vitt
-	efficient_sam_vitt_model = build_efficient_sam_vitt()
-	efficient_sam_vitt_model.eval()
-end
-
-# ╔═╡ a7d7fb49-904f-4bfd-87d0-9e853e614333
-begin
-	img = load(IOBuffer(im["data"]))
-	img_arr = reverse(permutedims(channelview(img), (2, 3, 1)), dims = 1);
+# ╔═╡ 8339a4c6-d69e-4798-a0f5-ad90bf331a35
+if run_segmentation && clicks != nothing && img != nothing
+	mask = run_efficient_sam(img_arr, input_points, input_labels, efficient_sam_vitt_model)
+	mask_float = Float64.(mask)
+else
+	mask_float = nothing
 end;
 
-# ╔═╡ c3d9374c-16e5-4712-8014-44767792c54a
-@bind clicks let
+# ╔═╡ 7652852c-fb47-43f0-bed8-ba29700f95a5
+let
+	# Create a heatmap of the original image
 	p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
-	add_plotly_listener!(p, "plotly_click", "
-		(function() {
-			var clicks = [];
-			return function(e) {
-				let dt = e.points[0];
-				clicks.push([dt.x, dt.y]);
-				if (clicks.length === 2) {
-					PLOT.value = clicks;
-					PLOT.dispatchEvent(new CustomEvent('input'));
-					clicks = [];
-				}
-			};
-		})()
-	")
+
+	if mask_float != nothing
+		# Create a new trace for the segmentation mask
+		mask_trace = PlotlyJS.heatmap(z=mask_float, colorscale = "Jet", opacity=0.5)
+		
+		# Add the segmentation mask trace to the existing plot
+		addtraces!(p, mask_trace)
+	end
+	
+	# Update the layout to set the title
+	relayout!(p, title_text = "Segmentation Mask")
+	
 	p
 end
 
-# ╔═╡ f8cb60a6-7836-4a71-863f-a23756a7292b
-if clicks != nothing
-	input_point = hcat(clicks...)
-end
-
-# ╔═╡ a461f0e5-6690-4602-b3fd-c5c14923b984
-input_label = [1, 1]
-
-# ╔═╡ b3a92d8c-768d-4e03-9423-0bd4b4780f90
-# ╠═╡ show_logs = false
-if clicks != nothing
-	mask = run_efficient_sam(img_arr, input_point, input_label, efficient_sam_vitt_model)
-	mask_float = Float64.(mask)
-end;
-
-# ╔═╡ a3d33cdf-9e43-4df7-bf6e-1053720b1370
-if clicks != nothing && mask_float != nothing
-	let
-		f = CairoMakie.Figure()
-		ax = CairoMakie.Axis(f[1, 1])
-		CairoMakie.heatmap!(ax, transpose(img_arr[:, :, 1]), colormap = :grays)
-		CairoMakie.heatmap!(ax, transpose(mask), colormap = (:jet, 0.5))
-		f
-	end
-end
-
 # ╔═╡ Cell order:
-# ╟─2f5631e4-baeb-46b3-947d-310b2a99d71a
-# ╟─2b3c2be9-e179-45bc-ac06-e67acd37f880
-# ╟─0f7a88af-4a82-46d0-ac3e-94c9a71736b4
-# ╟─c3d9374c-16e5-4712-8014-44767792c54a
-# ╟─089d68e2-3c72-43c6-8f1d-0162e3f058ff
-# ╟─a3d33cdf-9e43-4df7-bf6e-1053720b1370
-# ╟─62ed71dd-1598-4f1b-995c-db4483be5497
-# ╠═e4d881c6-e31c-11ee-3cba-090365ce157a
-# ╠═3c073890-af5d-4c37-843c-4b03fc7c1f31
-# ╠═58ecc385-02df-43a8-86d7-cf7316e78fb3
-# ╠═d567adda-a6b9-43b2-838b-5dd6edffcc95
-# ╠═b8c82a92-7613-4707-ba5b-29f171f59220
-# ╠═d4935235-404f-4cca-a4a1-a39031c12953
-# ╠═27f17af6-d8f8-4d15-b1f5-3b21decad981
-# ╠═dbe6f5c9-b7f6-4ae5-89f3-800fcff7d179
-# ╠═0bc72508-f018-441d-9faa-aa59f2c3564a
-# ╠═14949606-2b9b-4e26-aa4e-b56545768c09
-# ╠═58a53f29-4f85-47d8-8a01-43ce60547cf2
-# ╠═a7d7fb49-904f-4bfd-87d0-9e853e614333
-# ╠═f8cb60a6-7836-4a71-863f-a23756a7292b
-# ╠═a461f0e5-6690-4602-b3fd-c5c14923b984
-# ╠═b3a92d8c-768d-4e03-9423-0bd4b4780f90
+# ╟─d0c22900-22d3-4a88-9c81-5b5e78812edc
+# ╟─58fbdfd0-bac9-476b-816d-babf166fba84
+# ╠═2caa8cf2-d9db-4fd6-99fc-6831e81bc61d
+# ╟─2838443c-3d45-4cea-aac7-91e32d83606b
+# ╟─1b2c42a2-fbc0-4aba-a0d5-99ca1c614fa9
+# ╟─8656006a-a65d-4ea8-ae17-780688b9b203
+# ╠═c584b2f9-fae5-40a9-b9b5-591a42aedfa0
+# ╠═8339a4c6-d69e-4798-a0f5-ad90bf331a35
+# ╟─9c3b19d4-ef1e-45e0-8d64-53698c0f39c0
+# ╟─7652852c-fb47-43f0-bed8-ba29700f95a5
+# ╟─47163547-f805-4f57-a98a-6fd045f0440f
+# ╠═211b4260-be19-4127-8da2-527e290f6e2d
+# ╠═1023bb4d-219f-4843-8dc2-878a0760ee93
+# ╠═115cdd0c-f798-4478-96c0-64339f9d04bd
+# ╠═a6e5ec2f-df65-4853-8936-9254acfce324
+# ╠═27a8a934-9b14-4bec-8d0c-daed631a0fa7
+# ╠═b8e53ad9-41a7-46a9-a54b-8bdccd9fc31b
+# ╠═5d9b7817-93e0-487b-aecf-fe69891a93fd
+# ╠═ddae5f2c-38aa-4702-a93d-1c1702f8f09c
+# ╠═95fd162b-33f1-4801-9725-53e73b1edc6b
