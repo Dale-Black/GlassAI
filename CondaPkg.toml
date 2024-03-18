@@ -1,0 +1,9 @@
+[deps]
+python = "3.11"
+pip = ""
+
+[pip.deps]
+torch = ""
+torchvision = ""
+numpy = ""
+efficient-sam = "@ git+https://github.com/yformer/EfficientSAM.git"
