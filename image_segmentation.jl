@@ -47,7 +47,7 @@ using PlotlyBase: add_trace!, attr
 # ╔═╡ b8e53ad9-41a7-46a9-a54b-8bdccd9fc31b
 using Images: load, channelview, RGB
 
-# ╔═╡ a0a39283-d21f-43ef-b52e-5d644a70d4c0
+# ╔═╡ 5f0b4424-b7c7-44e4-9e69-5b6f30f3793a
 md"""
 # Image Segmentation Dashboard
 
@@ -64,47 +64,69 @@ Welcome to the Image Segmentation Dashboard! This interactive web app allows you
 Let's get started!
 """
 
-# ╔═╡ 62a5940d-b893-4158-bf8a-94b2333d9761
+# ╔═╡ 2f104042-6e1f-4741-9f74-78d133676601
 md"""
 ## Load Image
 
 Click the "Choose File" button to load an image:
 """
 
-# ╔═╡ 2c2a2742-e455-4c56-9f68-d523d517dbca
+# ╔═╡ ea15595f-080d-4011-96fb-f47c9a8a9ff5
 @bind im FilePicker([MIME("image/*")])
 
-# ╔═╡ a8b8d896-06ff-4702-a827-4beda9204466
+# ╔═╡ 5d69009c-3101-4803-9cab-45dc469794e8
 begin
     img = im == nothing ? nothing : load(IOBuffer(im["data"]))
-    img_arr = img == nothing ? zeros(100, 100, 3) : reverse(permutedims(channelview(img), (2, 3, 1)), dims = 1)
+    img_arr = if img == nothing
+        zeros(100, 100, 3)
+    else
+        if size(channelview(img), 3) == 1
+            # Grayscale image
+			reshape(reverse(Float32.(img), dims = 1), (size(Float32.(img))...), 1)
+        else
+            # RGB image
+            reverse(permutedims(channelview(img), (2, 3, 1)), dims = 1)
+        end
+    end
 end;
 
-# ╔═╡ 27ac9ce3-28cf-42ef-9e18-e7124b5f3808
+# ╔═╡ 639d0fbd-dc9a-43ce-acc3-33c020bfd107
 md"""
 ## Select Segmentation Points
 
 Click on the image to select points for segmentation. You can select multiple points.
 """
 
-# ╔═╡ cd88a1ea-52c5-4596-9bd3-7dd7702bc1a5
+# ╔═╡ 27b75d9d-ad20-4421-b5b4-533bc1736b08
 md"""
 Run Segmentation: $(@bind run_segmentation CheckBox())
 
 Clear Points: $(@bind clear_points CheckBox())
 """
 
-# ╔═╡ d09ab4f8-3d93-43d7-ab37-cb48d1acb066
+# ╔═╡ 0678942a-15f5-401b-8e9f-14de851a2e58
 @bind clicks let
     if clear_points
         clicks = []
     end
-	z = map(img) do i
-        [i.r, i.g, i.b] .* 255
+    
+    if img == nothing
+        p = plot(heatmap(z=zeros(100, 100), colorscale = "Greys"))
+    else
+        if size(img_arr, 3) == 1
+            # Grayscale image
+            p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
+        else
+            # RGB image
+            z = map(img) do i
+                [i.r, i.g, i.b] .* 255
+            end
+            z = collect(eachrow(z))
+            im = PlutoPlotly.image(;z)
+            p = PlutoPlotly.plot(im)
+        end
     end
-	z = collect(eachrow(z))
-	im = PlutoPlotly.image(;z)
-	p = PlutoPlotly.plot(im)
+    
     if img != nothing
         add_plotly_listener!(p, "plotly_click", "
             (function() {
@@ -134,13 +156,13 @@ Clear Points: $(@bind clear_points CheckBox())
     p
 end
 
-# ╔═╡ 78d30dba-5789-474f-bffd-c433e85f9478
+# ╔═╡ de21f60d-85fa-4b00-b6bb-d1c506f4a370
 if run_segmentation && clicks != nothing && img != nothing
     input_points = hcat(clicks...)
     input_labels = ones(Int, size(input_points, 2))
 end
 
-# ╔═╡ 52c5e6e7-a49f-495a-9a3c-4c6411bdee94
+# ╔═╡ 3ac9a240-80d9-4b01-a135-eb0254efa0d6
 md"""
 ## Segmentation Result
 
@@ -160,7 +182,7 @@ import PlotlyJS
 # ╔═╡ 5d9b7817-93e0-487b-aecf-fe69891a93fd
 TableOfContents()
 
-# ╔═╡ ddae5f2c-38aa-4702-a93d-1c1702f8f09c
+# ╔═╡ 98017e13-3d05-4b7c-992a-f76dcf0d6e39
 function preprocess(img::AbstractArray{T, 3}, pts_sampled, pts_labels) where {T}
     # Preprocess the input data
     image = Float32.(img)
@@ -178,11 +200,11 @@ function preprocess(img::AbstractArray{T, 3}, pts_sampled, pts_labels) where {T}
     return img_tensor_py, pts_sampled_py, pts_labels_py
 end
 
-# ╔═╡ 95fd162b-33f1-4801-9725-53e73b1edc6b
+# ╔═╡ c43f7331-9323-4a72-b317-4bc3463c0a34
 function run_efficient_sam(
-	img::AbstractArray{T, 3}, pts_sampled, pts_labels, model
-	) where {T}
-	img_tensor_py, pts_sampled_py, pts_labels_py = preprocess(img, pts_sampled, pts_labels)
+    img::AbstractArray{T, 3}, pts_sampled, pts_labels, model
+    ) where {T}
+    img_tensor_py, pts_sampled_py, pts_labels_py = preprocess(img, pts_sampled, pts_labels)
     
     # Run the model
     predicted_logits_py, predicted_iou_py = model(
@@ -193,8 +215,8 @@ function run_efficient_sam(
     
     # Convert PyTorch tensors to NumPy arrays
     predicted_logits_np = pyconvert(
-		Array{Float32}, predicted_logits_py.cpu().detach().numpy()
-	)
+        Array{Float32}, predicted_logits_py.cpu().detach().numpy()
+    )
     
     # Postprocess the output data in Julia
     predicted_mask = predicted_logits_np[1, 1, 1, :, :] .< 0
@@ -202,7 +224,7 @@ function run_efficient_sam(
     return predicted_mask
 end
 
-# ╔═╡ 05ae620f-ac06-4d17-b8b4-f485d4be74be
+# ╔═╡ 359266b3-355c-494b-95dd-c4ab6943342c
 if run_segmentation && clicks != nothing && img != nothing
     mask = run_efficient_sam(img_arr, input_points, input_labels, efficient_sam_vitt_model)
     mask_float = Float64.(mask)
@@ -210,14 +232,14 @@ else
     mask_float = nothing
 end;
 
-# ╔═╡ 4104d784-6b91-4246-b1a8-d2ad576cd46d
+# ╔═╡ d466087e-dc8c-4ec4-bc30-3a22df6be834
 let
-	p = plot(heatmap(z=nothing, colorscale = "Greys"))
-	
+    p = plot(heatmap(z=nothing, colorscale = "Greys"))
+    
     if mask_float != nothing
-		# Create a heatmap of the original image
-    	p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
-		
+		# Grayscale image
+		p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
+        
         # Create a new trace for the segmentation mask
         mask_trace = PlotlyJS.heatmap(z=mask_float, colorscale = "Jet", opacity=0.5)
         
@@ -232,17 +254,17 @@ let
 end
 
 # ╔═╡ Cell order:
-# ╟─a0a39283-d21f-43ef-b52e-5d644a70d4c0
-# ╟─62a5940d-b893-4158-bf8a-94b2333d9761
-# ╟─2c2a2742-e455-4c56-9f68-d523d517dbca
-# ╠═a8b8d896-06ff-4702-a827-4beda9204466
-# ╟─27ac9ce3-28cf-42ef-9e18-e7124b5f3808
-# ╟─cd88a1ea-52c5-4596-9bd3-7dd7702bc1a5
-# ╟─d09ab4f8-3d93-43d7-ab37-cb48d1acb066
-# ╠═78d30dba-5789-474f-bffd-c433e85f9478
-# ╠═05ae620f-ac06-4d17-b8b4-f485d4be74be
-# ╟─52c5e6e7-a49f-495a-9a3c-4c6411bdee94
-# ╟─4104d784-6b91-4246-b1a8-d2ad576cd46d
+# ╟─5f0b4424-b7c7-44e4-9e69-5b6f30f3793a
+# ╟─2f104042-6e1f-4741-9f74-78d133676601
+# ╟─ea15595f-080d-4011-96fb-f47c9a8a9ff5
+# ╠═5d69009c-3101-4803-9cab-45dc469794e8
+# ╟─639d0fbd-dc9a-43ce-acc3-33c020bfd107
+# ╟─27b75d9d-ad20-4421-b5b4-533bc1736b08
+# ╟─0678942a-15f5-401b-8e9f-14de851a2e58
+# ╠═de21f60d-85fa-4b00-b6bb-d1c506f4a370
+# ╠═359266b3-355c-494b-95dd-c4ab6943342c
+# ╟─3ac9a240-80d9-4b01-a135-eb0254efa0d6
+# ╟─d466087e-dc8c-4ec4-bc30-3a22df6be834
 # ╟─d9fd8e8e-8188-40d9-b932-44d4a5ac6fb5
 # ╠═211b4260-be19-4127-8da2-527e290f6e2d
 # ╠═1023bb4d-219f-4843-8dc2-878a0760ee93
@@ -251,5 +273,5 @@ end
 # ╠═27a8a934-9b14-4bec-8d0c-daed631a0fa7
 # ╠═b8e53ad9-41a7-46a9-a54b-8bdccd9fc31b
 # ╠═5d9b7817-93e0-487b-aecf-fe69891a93fd
-# ╠═ddae5f2c-38aa-4702-a93d-1c1702f8f09c
-# ╠═95fd162b-33f1-4801-9725-53e73b1edc6b
+# ╠═98017e13-3d05-4b7c-992a-f76dcf0d6e39
+# ╠═c43f7331-9323-4a72-b317-4bc3463c0a34
