@@ -1,6 +1,9 @@
 ### A Pluto.jl notebook ###
 # v0.19.40
 
+#> [frontmatter]
+#> title = "Image Segmentation"
+
 using Markdown
 using InteractiveUtils
 
@@ -42,7 +45,7 @@ using PlutoPlotly
 using PlotlyBase: add_trace!, attr
 
 # ╔═╡ b8e53ad9-41a7-46a9-a54b-8bdccd9fc31b
-using Images: load, channelview
+using Images: load, channelview, RGB
 
 # ╔═╡ a0a39283-d21f-43ef-b52e-5d644a70d4c0
 md"""
@@ -96,8 +99,12 @@ Clear Points: $(@bind clear_points CheckBox())
     if clear_points
         clicks = []
     end
-    
-    p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
+	z = map(img) do i
+        [i.r, i.g, i.b] .* 255
+    end
+	z = collect(eachrow(z))
+	im = PlutoPlotly.image(;z)
+	p = PlutoPlotly.plot(im)
     if img != nothing
         add_plotly_listener!(p, "plotly_click", "
             (function() {
@@ -156,8 +163,8 @@ TableOfContents()
 # ╔═╡ ddae5f2c-38aa-4702-a93d-1c1702f8f09c
 function preprocess(img::AbstractArray{T, 3}, pts_sampled, pts_labels) where {T}
     # Preprocess the input data
-    image_np = Float32.(img)
-    img_tensor = permutedims(image_np, (3, 1, 2))
+    image = Float32.(img)
+    img_tensor = permutedims(image, (3, 1, 2))
     img_tensor = reshape(img_tensor, (1, size(img_tensor)...))
     
     pts_sampled = reshape(pts_sampled, (1, 1, size(pts_sampled, 2), 2))
@@ -205,10 +212,12 @@ end;
 
 # ╔═╡ 4104d784-6b91-4246-b1a8-d2ad576cd46d
 let
-    # Create a heatmap of the original image
-    p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
-
+	p = plot(heatmap(z=nothing, colorscale = "Greys"))
+	
     if mask_float != nothing
+		# Create a heatmap of the original image
+    	p = plot(heatmap(z=img_arr[:, :, 1], colorscale = "Greys"))
+		
         # Create a new trace for the segmentation mask
         mask_trace = PlotlyJS.heatmap(z=mask_float, colorscale = "Jet", opacity=0.5)
         
