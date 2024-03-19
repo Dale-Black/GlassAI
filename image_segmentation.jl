@@ -94,7 +94,7 @@ end;
 md"""
 ## Select Segmentation Points
 
-Click on the image to select points for segmentation. You can select multiple points.
+Click on the image to select points for segmentation. You can select up to 5 points.
 """
 
 # ╔═╡ 27b75d9d-ad20-4421-b5b4-533bc1736b08
