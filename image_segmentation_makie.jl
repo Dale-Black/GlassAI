@@ -157,7 +157,7 @@ Run Segmentation: $(@bind run_segmentation CheckBox())
 # ╔═╡ 59c465ed-3335-4f33-b7ae-ce48c2cd4d58
 function demo(img, prompt_x::Int, prompt_y::Int, run_segmentation::Bool)
 	# setup canvas
-	makie_img = Makie.image(rotr90(img))
+	makie_img = GLMakie.image(rotr90(img))
 	makie_img.axis.autolimitaspect = 1
 	hidedecorations!(makie_img.axis)
 	# draw a prompt point
