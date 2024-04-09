@@ -71,7 +71,7 @@ $(@bind _im FilePicker([MIME("image/*")]))
 md"""
 ## Appendix
 
-Read the code below to see how this AI powered webapp was built in less than 200 lines of code
+Read the code below to see how this AI powered webapp was built in ~100 lines of meaningful code
 """
 
 # ╔═╡ 8906f4c3-7f2d-46f3-8387-8cfeb599bb1a
