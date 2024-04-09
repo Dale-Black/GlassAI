@@ -46,11 +46,11 @@ using PlutoUI
 
 # ╔═╡ 355bf774-d3e8-48d8-8354-96f9cfc6fd98
 md"""
-# Image Segmentation Dashboard
+# AI Powered Image Segmentation
 
-Welcome to the Image Segmentation Dashboard! This interactive web app allows you to load an image, select a prompt point for segmentation, and view the segmented mask.
+Welcome to the Image Segmentation web app! This interactive web app allows you to load an image, select a prompt point for segmentation, and view the segmented mask.
 
-## How to Use
+## Usage
 
 1. Load an image by clicking on the "Choose File" button below. [The default image can be found here](https://upload.wikimedia.org/wikipedia/commons/a/a1/Beagle_and_sleeping_black_and_white_kitty-01.jpg)
 2. Adjust the sliders `X` and `Y` below to specify the coordinate of the prompt point for segmentation.
@@ -60,10 +60,22 @@ Welcome to the Image Segmentation Dashboard! This interactive web app allows you
 Let's get started!
 """
 
+# ╔═╡ e50b6e0a-cd17-44f5-873f-6f048c149a29
+md"""
+Load an image by clicking on the "Choose File"
+
+$(@bind _im FilePicker([MIME("image/*")]))
+"""
+
 # ╔═╡ 61093d24-9e24-4f55-b675-497b9c7d376c
 md"""
----
+## Appendix
+
+Read the code below to see how this AI powered webapp was built in less than 200 lines of code
 """
+
+# ╔═╡ 8906f4c3-7f2d-46f3-8387-8cfeb599bb1a
+TableOfContents()
 
 # ╔═╡ cbdba8b3-06f5-4f0d-ab99-8ddb74ca733b
 function default_image()
@@ -125,34 +137,21 @@ function run_efficient_sam(model, img, point_prompt)
     return predicted_mask
 end
 
-# ╔═╡ 1f07da64-4618-40e7-bbd3-64869e48c4a2
-ui_filepicker = @bind _im FilePicker([MIME("image/*")])
-
-# ╔═╡ e50b6e0a-cd17-44f5-873f-6f048c149a29
-md"""
-Load an image by clicking on the "Choose File"
-
-$(ui_filepicker)
-"""
-
 # ╔═╡ 75f464bc-e098-4ca2-a699-12ac2a7afc56
 begin
 	img = isnothing(_im) ? default_image() : load(IOBuffer(_im["data"]))
 	img = convert(Matrix{RGB{N0f8}}, img)
 	H, W = size(img)
-	ui_prompt_y = @bind prompt_y PlutoUI.Slider(1:H, default=H÷2)
-	ui_prompt_x = @bind prompt_x PlutoUI.Slider(1:W, default=W÷2)
-	ui_run_segmentation = @bind run_segmentation CheckBox()
 	nothing
 end
 
 # ╔═╡ 8da5e2da-3168-4f0b-9bb6-c818e1053c70
 md"""
-X: $(ui_prompt_x) $(prompt_x)
+X: $(@bind prompt_x PlutoUI.Slider(1:W, default=W÷2))
 
-Y: $(ui_prompt_y) $(prompt_y)
+Y: $(@bind prompt_y PlutoUI.Slider(1:H, default=H÷2))
 
-Run Segmentation: $(ui_run_segmentation)
+Run Segmentation: $(@bind run_segmentation CheckBox())
 """
 
 # ╔═╡ 59c465ed-3335-4f33-b7ae-ce48c2cd4d58
@@ -196,9 +195,9 @@ demo(img, prompt_x, prompt_y, run_segmentation)
 # ╟─61093d24-9e24-4f55-b675-497b9c7d376c
 # ╠═14618997-e3b2-4ed6-a290-56b1d177ab8e
 # ╠═690a08a6-b365-4962-85fd-02536e7746d3
+# ╠═8906f4c3-7f2d-46f3-8387-8cfeb599bb1a
 # ╠═cbdba8b3-06f5-4f0d-ab99-8ddb74ca733b
 # ╠═9fb50aec-a21e-495d-8106-86f13c10a9da
 # ╠═25c0631c-734f-4c87-9b6a-d8cafc5698a0
-# ╠═1f07da64-4618-40e7-bbd3-64869e48c4a2
 # ╠═75f464bc-e098-4ca2-a699-12ac2a7afc56
 # ╠═59c465ed-3335-4f33-b7ae-ce48c2cd4d58
