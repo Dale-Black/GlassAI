@@ -1,6 +1,9 @@
 ### A Pluto.jl notebook ###
 # v0.19.40
 
+#> [frontmatter]
+#> title = "Background Remover"
+
 using Markdown
 using InteractiveUtils
 
@@ -18,6 +21,7 @@ end
 begin
 	using Pkg
 	Pkg.activate(".")
+	Pkg.instantiate()
 
 	using Downloads
 	using PythonCall
