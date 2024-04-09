@@ -2,7 +2,7 @@
 # v0.19.40
 
 #> [frontmatter]
-#> title = "Background Remover"
+#> title = "Image Segmentation"
 
 using Markdown
 using InteractiveUtils
