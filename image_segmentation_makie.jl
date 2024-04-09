@@ -2,7 +2,7 @@
 # v0.19.40
 
 #> [frontmatter]
-#> title = "Image Segmentation"
+#> title = "Background Remover"
 
 using Markdown
 using InteractiveUtils
@@ -18,6 +18,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 14618997-e3b2-4ed6-a290-56b1d177ab8e
+# ╠═╡ show_logs = false
 begin
 	using Pkg
 	Pkg.activate(".")
@@ -191,7 +192,7 @@ demo(img, prompt_x, prompt_y, run_segmentation)
 # ╟─355bf774-d3e8-48d8-8354-96f9cfc6fd98
 # ╟─e50b6e0a-cd17-44f5-873f-6f048c149a29
 # ╟─8da5e2da-3168-4f0b-9bb6-c818e1053c70
-# ╠═fada5bf7-36f6-48fb-b783-934eb062c097
+# ╟─fada5bf7-36f6-48fb-b783-934eb062c097
 # ╟─61093d24-9e24-4f55-b675-497b9c7d376c
 # ╠═14618997-e3b2-4ed6-a290-56b1d177ab8e
 # ╠═690a08a6-b365-4962-85fd-02536e7746d3
