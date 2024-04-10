@@ -38,7 +38,7 @@ begin
 	efficient_sam_vitt_model.eval()
 	
 	using Images
-	using GLMakie
+	using CairoMakie
 end
 
 # ╔═╡ 690a08a6-b365-4962-85fd-02536e7746d3
@@ -71,7 +71,7 @@ $(@bind _im FilePicker([MIME("image/*")]))
 md"""
 ## Appendix
 
-Read the code below to see how this AI powered webapp was built in ~100 lines of meaningful code
+Read below to see how this AI powered webapp was built in ~100 lines of meaningful code
 """
 
 # ╔═╡ 8906f4c3-7f2d-46f3-8387-8cfeb599bb1a
@@ -157,7 +157,7 @@ Run Segmentation: $(@bind run_segmentation CheckBox())
 # ╔═╡ 59c465ed-3335-4f33-b7ae-ce48c2cd4d58
 function demo(img, prompt_x::Int, prompt_y::Int, run_segmentation::Bool)
 	# setup canvas
-	makie_img = GLMakie.image(rotr90(img))
+	makie_img = CairoMakie.image(rotr90(img))
 	makie_img.axis.autolimitaspect = 1
 	hidedecorations!(makie_img.axis)
 	# draw a prompt point
